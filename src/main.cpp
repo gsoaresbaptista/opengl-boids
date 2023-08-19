@@ -17,29 +17,40 @@ const char *vertexShaderSource = R"glsl(
     #version 330 core
 
     layout (location = 0) in vec3 aPos;
-    layout (location = 1) in vec3 aColor;
+    layout (location = 1) in vec3 aNormal;
 
     uniform mat4 model;
     uniform mat4 view;
     uniform mat4 projection;
 
-    out vec3 Color;
+    out vec3 Normal;
+    out vec3 FragPos;
 
     void main(){
         gl_Position = projection * view * model * vec4(aPos, 1.0);
-        Color = aColor;
+        Normal = aNormal;
+        FragPos = vec3(model * vec4(aPos, 1.0));
     }
 )glsl";
 
 const char *fragmentShaderSource = R"glsl(
     #version 330 core
 
-    in vec3 Color;
+    in vec3 Normal;
+    in vec3 FragPos;
+
+    uniform vec3 lightColor;
+    uniform vec3 objectColor;
 
     out vec4 FragColor;
 
     void main(){
-        FragColor = vec4(Color, 1.0);
+        // ambient
+        float ambientStrength = 0.1;
+        vec3 ambient = ambientStrength * lightColor;
+
+        vec3 result = ambient * objectColor;
+        FragColor = vec4(result, 1.0);
     }
 )glsl";
 
@@ -81,6 +92,38 @@ int main() {
         0, 3, 4,
     };
 
+    // compute normals
+    for (unsigned int i = 0; i < 18; i += 3) {
+        unsigned int p = indices[i]*6;
+        glm::vec3 A = glm::vec3(vertices[p], vertices[p+1], vertices[p+2]);
+        p = indices[i+1]*6;
+        glm::vec3 B = glm::vec3(vertices[p], vertices[p+1], vertices[p+2]);
+        p = indices[i+2]*6;
+        glm::vec3 C = glm::vec3(vertices[p], vertices[p+1], vertices[p+2]);
+        glm::vec3 AB = B - A;
+        glm::vec3 AC = C - A;
+        glm::vec3 ABxAC = glm::cross(AB, AC);
+        p = indices[i]*6;
+        vertices[p+3] += ABxAC.x;
+        vertices[p+4] += ABxAC.y;
+        vertices[p+5] += ABxAC.z;
+        p = indices[i+1]*6;
+        vertices[p+3] += ABxAC.x;
+        vertices[p+4] += ABxAC.y;
+        vertices[p+5] += ABxAC.z;
+        p = indices[i+2]*6;
+        vertices[p+3] += ABxAC.x;
+        vertices[p+4] += ABxAC.y;
+        vertices[p+5] += ABxAC.z;
+    }
+    for (int i = 0; i < 5; i++) {
+        unsigned int p = i*6+3;
+        glm::vec3 normalized = glm::normalize(glm::vec3(vertices[p], vertices[p+1], vertices[p+2]));
+        vertices[p] = normalized.x;
+        vertices[p+1] = normalized.y;
+        vertices[p+2] = normalized.z;
+    }
+
     unsigned int VAO;
     glGenVertexArrays(1, &VAO);
     glBindVertexArray(VAO);
@@ -119,6 +162,10 @@ int main() {
     model = glm::translate(model, glm::vec3(0, 0, -1));
     glm::mat4 projection = glm::perspective(glm::radians(45.0f), 800.0f / 600.0f, 0.1f, 100.0f);
     glm::mat4 view = glm::mat4(1.0);
+
+    // light settings
+    glUniform3f(glGetUniformLocation(shaderProgram, "lightColor"), 1.0f, 1.0f, 1.0f);
+    glUniform3f(glGetUniformLocation(shaderProgram, "objectColor"), 0.5f, 0.15f, 0.0f);
 
     while (!glfwWindowShouldClose(window)) {
         float currentFrame = static_cast<float>(glfwGetTime()/2);
