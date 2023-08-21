@@ -9,6 +9,7 @@ class Mesh {
     protected:
         std::vector<float> vertices;
         std::vector<GLuint> indices;
+        GLuint drawMode = GL_LINE_LOOP;
         GLuint VAO = 0, VBO = 0, EBO = 0;
 
     public:
@@ -17,6 +18,7 @@ class Mesh {
         ~Mesh();
         void setup(bool withIndices);
         void draw();
+        void setDrawMode(GLuint mode);
 };
 
 #endif  // CORE_MESH_HPP_

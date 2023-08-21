@@ -1,8 +1,8 @@
 #include "core/mesh.hpp"
-#include<iostream>
 
 Mesh::Mesh(const std::vector<float>& vertices, const std::vector<GLuint>& indices)
     : vertices(vertices), indices(indices) {
+    this->drawMode = GL_TRIANGLES;
     this->setup(true);
 }
 
@@ -22,12 +22,16 @@ void Mesh::draw() {
 
     // select draw function
     if (!this->EBO) {
-        glDrawArrays(GL_LINE_LOOP, 0, vertices.size()/3);
+        glDrawArrays(this->drawMode, 0, vertices.size()/3);
     } else {
-        glDrawElements(GL_TRIANGLES, indices.size(), GL_UNSIGNED_INT, 0);
+        glDrawElements(drawMode, indices.size(), GL_UNSIGNED_INT, 0);
     }
 
     glBindVertexArray(0);
+}
+
+void Mesh::setDrawMode(GLuint mode) {
+    this->drawMode = mode;
 }
 
 void Mesh::setup(bool withIndices) {
