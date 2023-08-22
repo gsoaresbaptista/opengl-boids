@@ -21,7 +21,13 @@ void Camera::updateTheta(float delta) {
     this->theta -= delta;
     this->update();
 }
-#include<iostream>
+
+void Camera::updateRadius(float delta) {
+    this->radius -= delta;
+    this->update();
+}
+
+
 void Camera::updatePhi(float delta){
     this->phi -= delta;
     if (this->phi < 0.1f) this->phi = 0.1f;

@@ -24,31 +24,37 @@ float lastFrame = 0.0f;
 unsigned int windowWidth = 1280;
 unsigned int windowHeight = 720;
 const unsigned int seed = 42;
+const glm::vec3 UP(0, 1, 0);
 
 // camera settings
 Camera camera(100, 0.f, 90.f, glm::vec3(0.f, 0.f, 0.f));
 
-void mouse_callback(GLFWwindow* window, double xpos, double ypos) {
-    if (window) {
-        static float lastMousePosx = 0.f;
-        static float lastMousePosy = 0.f;
-        float dx, dy;
+void mouse_callback(GLFWwindow* window __attribute__((unused)), double xpos, double ypos) {
+    static float lastMousePosx = 0.f;
+    static float lastMousePosy = 0.f;
+    float dx, dy;
 
-        if (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS) {
-            dx = xpos - lastMousePosx;
-            if (fabs(dx) > 10.f) dx = 10.f;
-            camera.updateTheta(dx);
-        }
-
-        if (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_RIGHT) == GLFW_PRESS) {
-            dy = ypos - lastMousePosy;
-            if (fabs(dy) > 10.f) dy = 10.f;
-            camera.updatePhi(dy);
-        }
-
-        lastMousePosx = xpos;
-        lastMousePosy = ypos;
+    if (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS) {
+        dx = xpos - lastMousePosx;
+        if (fabs(dx) > 10.f) dx = 10.f;
+        camera.updateTheta(dx);
     }
+
+    if (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_RIGHT) == GLFW_PRESS) {
+        dy = ypos - lastMousePosy;
+        if (fabs(dy) > 10.f) dy = 10.f;
+        camera.updatePhi(dy);
+    }
+
+    lastMousePosx = xpos;
+    lastMousePosy = ypos;
+}
+
+void scroll_callback(
+    GLFWwindow* window __attribute__((unused)),
+    double xoffset __attribute__((unused)),
+    double yoffset) {
+    camera.updateRadius(yoffset);
 }
 
 void key_callback(
@@ -89,6 +95,7 @@ int main() {
     glfwMakeContextCurrent(window);
     glfwSetKeyCallback(window, key_callback);
     glfwSetCursorPosCallback(window, mouse_callback);
+    glfwSetScrollCallback(window, scroll_callback);
 
     // load glad
     assert(gladLoadGLLoader((GLADloadproc)glfwGetProcAddress));
@@ -128,7 +135,7 @@ int main() {
 
         // perspective matrices
         glm::mat4 model = glm::mat4(1.0);
-        glm::mat4 projection = glm::perspective(glm::radians(40.0f), (float)windowWidth / windowHeight, 0.1f, 500.0f);
+        glm::mat4 projection = glm::perspective(glm::radians(40.0f), (float)windowWidth / windowHeight, 0.1f, 150.0f);
 
         // get circle points
         std::shared_ptr<Mesh> circle = Primitives::circle(0.3536, 30);
@@ -139,7 +146,7 @@ int main() {
         bool drawNeighborhood = false;
 
         // generate random boids
-        int nBoids = 50;
+        int nBoids = 500;
         float w = grids * space / 2.0;
         std::vector<glm::vec3> boidPositions;
         std::vector<glm::vec3> boidVelocities;
@@ -178,14 +185,22 @@ int main() {
             glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
             // draw grid
-            shader.uniform("model", model);
+            glm::mat4 cubeModel = glm::mat4(1.0);
+            if (camera.getTheta() > 0)
+                cubeModel = glm::rotate(cubeModel, glm::radians((int(camera.getTheta()/90)+1)*90.f), UP);
+            if (camera.getTheta() < 0)
+                cubeModel = glm::rotate(cubeModel, glm::radians(int(camera.getTheta())/90*90.f), UP);
+
+            glDepthMask(GL_FALSE);
+            shader.uniform("model", cubeModel);
             shader.uniform("color", 0.8f, 0.8f, 0.85f);
             glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
             cube->draw();
-            shader.uniform("model", model);
+            shader.uniform("model", cubeModel);
             shader.uniform("color", 0.f, 0.f, 0.f);
             glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
             grid->draw();
+            glDepthMask(GL_TRUE);
 
             for (unsigned int i = 0; i < boidPositions.size(); i++) {
                 glm::mat4 rotated, tmp_model = glm::translate(model, boidPositions[i]);
@@ -196,7 +211,7 @@ int main() {
                     rotated = glm::rotate(tmp_model, (float)M_PI/2, glm::vec3(1, 0, 0));
                     shader.uniform("model", rotated);
                     circle->draw();
-                    rotated = glm::rotate(tmp_model, (float)M_PI/2, glm::vec3(0, 1, 0));
+                    rotated = glm::rotate(tmp_model, (float)M_PI/2, UP);
                     shader.uniform("model", rotated);
                     circle->draw();
                     rotated = glm::rotate(tmp_model, (float)M_PI/2, glm::vec3(0, 0, 1));
@@ -209,7 +224,7 @@ int main() {
                     rotated = glm::rotate(tmp_model, (float)M_PI/2, glm::vec3(1, 0, 0));
                     shader.uniform("model", rotated);
                     neighborhood->draw();
-                    rotated = glm::rotate(tmp_model, (float)M_PI/2, glm::vec3(0, 1, 0));
+                    rotated = glm::rotate(tmp_model, (float)M_PI/2, UP);
                     shader.uniform("model", rotated);
                     neighborhood->draw();
                     rotated = glm::rotate(tmp_model, (float)M_PI/2, glm::vec3(0, 0, 1));
@@ -219,7 +234,7 @@ int main() {
 
                 // fix bird rotation
                 glm::vec3 v = boidVelocities[i];
-                tmp_model = glm::rotate(tmp_model, -atan2f(v.z, v.x), glm::vec3(0, 1, 0));
+                tmp_model = glm::rotate(tmp_model, -atan2f(v.z, v.x), UP);
                 tmp_model = glm::rotate(tmp_model, atan2f(v.y, sqrtf(v.x*v.x+v.z*v.z)), glm::vec3(0, 0, 1));
                 shader.uniform("model", tmp_model);
                 shader.uniform("color", 0.f, 0.f, 0.f);

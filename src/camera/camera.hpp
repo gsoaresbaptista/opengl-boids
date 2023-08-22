@@ -25,6 +25,7 @@ class Camera {
         glm::mat4 getViewMatrix();
         void updateTheta(float delta);
         void updatePhi(float delta);
+        void updateRadius(float delta);
         float getTheta();
         float getPhi();
 };
