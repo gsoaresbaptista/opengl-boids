@@ -29,6 +29,14 @@ const glm::vec3 UP(0, 1, 0);
 // camera settings
 Camera camera(100, 0.f, 90.f, glm::vec3(0.f, 0.f, 0.f));
 
+// simulation settings
+float speed = 2.f;
+float neighborhoodRadius = 8*0.3536;
+float separationValue = 0.10;
+float cohesionValue = 0.10;
+float alignmentValue = 0.10;
+
+
 void mouse_callback(GLFWwindow* window __attribute__((unused)), double xpos, double ypos) {
     static float lastMousePosx = 0.f;
     static float lastMousePosy = 0.f;
@@ -66,12 +74,93 @@ void key_callback(
     if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS) {
         glfwSetWindowShouldClose(window, 1);
     }
+    if (key == GLFW_KEY_S && action == GLFW_PRESS) {
+        speed = speed >= 100.f ? 2.f : 100.f;
+        separationValue = separationValue >= 10 ? 0.1f : 10.f;
+        cohesionValue = cohesionValue >= 10 ? 0.1f : 10.f;
+        alignmentValue = alignmentValue >= 10 ? 0.1f : 10.f;
+    }
+}
+
+glm::vec3 separation(unsigned int i, std::vector<glm::vec3> &boidPositions, std::vector<glm::vec3> &boidVelocities) {
+    int total = 0;
+    glm::vec3 tmp = glm::vec3(0);
+
+    for (unsigned int j = 0; j < boidPositions.size(); j++) {
+        if (j != i) {
+            glm::vec3 distance = boidPositions[i] - boidPositions[j];
+            if (glm::length(distance) < neighborhoodRadius) {
+                total++;
+                tmp += glm::normalize(distance);
+            }
+        }
+    }
+
+    if (total > 0) {
+        tmp = glm::normalize(tmp);
+    }
+
+    return tmp;
+}
+
+glm::vec3 cohesion(unsigned int i, std::vector<glm::vec3> &boidPositions, std::vector<glm::vec3> &boidVelocities) {
+    int total = 0;
+    glm::vec3 tmp = glm::vec3(0);
+
+    for (unsigned int j = 0; j < boidPositions.size(); j++) {
+        if (j != i) {
+            float distance = glm::length(boidPositions[i] - boidPositions[j]);
+            if (distance < neighborhoodRadius) {
+                total++;
+                tmp += boidPositions[j];
+            }
+        }
+    }
+
+    if (total > 0) {
+        tmp /= total;
+        tmp = glm::normalize(tmp - boidPositions[i]);
+    }
+
+    return tmp;
+}
+
+glm::vec3 alignment(unsigned int i, std::vector<glm::vec3> &boidPositions, std::vector<glm::vec3> &boidVelocities) {
+    int total = 0;
+    glm::vec3 tmp = glm::vec3(0);
+
+    for (unsigned int j = 0; j < boidPositions.size(); j++) {
+        if (j != i) {
+            float distance = glm::length(boidPositions[i] - boidPositions[j]);
+            if (distance < neighborhoodRadius) {
+                total++;
+                tmp += boidVelocities[j] / distance;
+            }
+        }
+    }
+
+    if (total > 0) {
+        tmp /= total;
+        tmp = glm::normalize(tmp);
+    }
+
+    return tmp;
 }
 
 void updateBoids(std::vector<glm::vec3> &boidPositions, std::vector<glm::vec3> &boidVelocities, float dt) {
     for (unsigned int i = 0; i < boidPositions.size(); i++) {
-        boidPositions[i] += boidVelocities[i] * dt;
+        glm::vec3 acceleration = glm::vec3(0.0);
+        acceleration += separation(i, boidPositions, boidVelocities) * separationValue;
+        acceleration += cohesion(i, boidPositions, boidVelocities) * cohesionValue;
+        acceleration += alignment(i, boidPositions, boidVelocities) * alignmentValue;
+        boidVelocities[i] += acceleration / (separationValue + cohesionValue + alignmentValue);
+
+        if (glm::length(boidVelocities[i]) > speed) {
+            boidVelocities[i] /= glm::length(boidVelocities[i]);
+        }
+
         // check if boids go out of the cube, if so wrap them to the other side
+        boidPositions[i] += boidVelocities[i] * dt;
         if (boidPositions[i].x < -25.f) boidPositions[i].x = 25.f;
         if (boidPositions[i].y < -25.f) boidPositions[i].y = 25.f;
         if (boidPositions[i].z < -25.f) boidPositions[i].z = 25.f;
@@ -139,7 +228,7 @@ int main() {
 
         // get circle points
         std::shared_ptr<Mesh> circle = Primitives::circle(0.3536, 30);
-        std::shared_ptr<Mesh> neighborhood = Primitives::circle(0.3536*5, 100);
+        std::shared_ptr<Mesh> neighborhood = Primitives::circle(neighborhoodRadius, 100);
 
         // algorithm
         bool drawCollisionRegion = false;
@@ -154,7 +243,7 @@ int main() {
         // random generator
         std::mt19937 generator(seed);
         std::uniform_real_distribution<float> position(-w + 0.6, +w - 0.6);
-        std::uniform_real_distribution<float> velocity(-3.0, 3.0);
+        std::uniform_real_distribution<float> velocity(-speed, speed);
 
         for (int i = 0; i < nBoids; i++) {
             boidPositions.push_back(glm::vec3(
@@ -206,7 +295,7 @@ int main() {
                 glm::mat4 rotated, tmp_model = glm::translate(model, boidPositions[i]);
 
                 if (drawCollisionRegion) {
-                    shader.uniform("color", 0.2f, 0.2f, 0.2f);
+                    shader.uniform("color", 0.75f, 0.50f, 0.50f);
                     circle->draw();
                     rotated = glm::rotate(tmp_model, (float)M_PI/2, glm::vec3(1, 0, 0));
                     shader.uniform("model", rotated);
@@ -220,7 +309,7 @@ int main() {
                 }
 
                 if (drawNeighborhood) {
-                    shader.uniform("color", 0.75f, 0.75f, 0.75f);
+                    shader.uniform("color", 0.5f, 0.5f, 0.75f);
                     rotated = glm::rotate(tmp_model, (float)M_PI/2, glm::vec3(1, 0, 0));
                     shader.uniform("model", rotated);
                     neighborhood->draw();
