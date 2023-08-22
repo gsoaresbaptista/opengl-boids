@@ -9,7 +9,7 @@ BUILD_DIR := build
 TARGET := boids
 
 # List of modules
-MODULES := core shapes
+MODULES := core camera shapes
 THIRD_PARTY := glad
 CPP_FILES := $(foreach module,$(MODULES),$(wildcard $(SRC_DIR)/$(module)/*.cpp))
 OBJ_FILES := $(patsubst $(SRC_DIR)/%.cpp, $(BUILD_DIR)/%.o, $(CPP_FILES))

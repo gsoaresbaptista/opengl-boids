@@ -8,24 +8,48 @@
 #include "core/mesh.hpp"
 #include "shapes/primitives.hpp"
 #include "shapes/visualization.hpp"
+#include "camera/camera.hpp"
 
 #include <vector>
 #include <memory>
 #include <iostream>
 #include <random>
+#include <cmath>
 
 // timing
 float deltaTime = 0.0f;
 float lastFrame = 0.0f;
 
-// visualization
-float boxAngle = 45.0f;
-float globalAngle = 45.0f;
-
 // global settings
 unsigned int windowWidth = 1280;
 unsigned int windowHeight = 720;
 const unsigned int seed = 42;
+
+// camera settings
+Camera camera(100, 0.f, 90.f, glm::vec3(0.f, 0.f, 0.f));
+
+void mouse_callback(GLFWwindow* window, double xpos, double ypos) {
+    if (window) {
+        static float lastMousePosx = 0.f;
+        static float lastMousePosy = 0.f;
+        float dx, dy;
+
+        if (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS) {
+            dx = xpos - lastMousePosx;
+            if (fabs(dx) > 10.f) dx = 10.f;
+            camera.updateTheta(dx);
+        }
+
+        if (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_RIGHT) == GLFW_PRESS) {
+            dy = ypos - lastMousePosy;
+            if (fabs(dy) > 10.f) dy = 10.f;
+            camera.updatePhi(dy);
+        }
+
+        lastMousePosx = xpos;
+        lastMousePosy = ypos;
+    }
+}
 
 void key_callback(
         GLFWwindow* window,
@@ -36,20 +60,19 @@ void key_callback(
     if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS) {
         glfwSetWindowShouldClose(window, 1);
     }
-    // update angle
-    if (key == GLFW_KEY_RIGHT && (action == GLFW_PRESS || action == GLFW_REPEAT)) {
-        globalAngle -= 1.0;
-        boxAngle -= 1.0;
+}
+
+void updateBoids(std::vector<glm::vec3> &boidPositions, std::vector<glm::vec3> &boidVelocities, float dt) {
+    for (unsigned int i = 0; i < boidPositions.size(); i++) {
+        boidPositions[i] += boidVelocities[i] * dt;
+        // check if boids go out of the cube, if so wrap them to the other side
+        if (boidPositions[i].x < -25.f) boidPositions[i].x = 25.f;
+        if (boidPositions[i].y < -25.f) boidPositions[i].y = 25.f;
+        if (boidPositions[i].z < -25.f) boidPositions[i].z = 25.f;
+        if (boidPositions[i].x > +25.f) boidPositions[i].x = -25.f;
+        if (boidPositions[i].y > +25.f) boidPositions[i].y = -25.f;
+        if (boidPositions[i].z > +25.f) boidPositions[i].z = -25.f;
     }
-    if (key == GLFW_KEY_LEFT && (action == GLFW_PRESS || action == GLFW_REPEAT)) {
-        globalAngle += 1.0;
-        boxAngle += 1.0;
-    }
-    // fix box angle
-    if (boxAngle > 90 && boxAngle < 180)
-        boxAngle -= 90;
-    if (boxAngle < 0)
-        boxAngle += 90;
 }
 
 int main() {
@@ -65,6 +88,7 @@ int main() {
     assert(window);
     glfwMakeContextCurrent(window);
     glfwSetKeyCallback(window, key_callback);
+    glfwSetCursorPosCallback(window, mouse_callback);
 
     // load glad
     assert(gladLoadGLLoader((GLADloadproc)glfwGetProcAddress));
@@ -97,15 +121,14 @@ int main() {
         Mesh bird(vertices, indices);
 
         // get grid points
-        int grids = 20;
+        int grids = 50;
         float space = 1.0;
-        std::shared_ptr<Mesh> grid = Visualization::halfCubeGrid(space, grids + 2);
-        std::shared_ptr<Mesh> cube = Visualization::halfCube((grids + 2) * space);
+        std::shared_ptr<Mesh> grid = Visualization::halfCubeGrid(space, grids);
+        std::shared_ptr<Mesh> cube = Visualization::halfCube(grids * space);
 
         // perspective matrices
-        glm::mat4 model = glm::translate(glm::mat4(1.0), glm::vec3(0, 0, -2*grids*space));
-        glm::mat4 projection = glm::perspective(glm::radians(45.0f), (float)windowWidth / windowHeight, 0.1f, 100.0f);
-        glm::mat4 view = glm::mat4(1.0);
+        glm::mat4 model = glm::mat4(1.0);
+        glm::mat4 projection = glm::perspective(glm::radians(40.0f), (float)windowWidth / windowHeight, 0.1f, 500.0f);
 
         // get circle points
         std::shared_ptr<Mesh> circle = Primitives::circle(0.3536, 30);
@@ -119,16 +142,23 @@ int main() {
         int nBoids = 50;
         float w = grids * space / 2.0;
         std::vector<glm::vec3> boidPositions;
+        std::vector<glm::vec3> boidVelocities;
 
-        // random generator 
+        // random generator
         std::mt19937 generator(seed);
-        std::uniform_real_distribution<float> distribution(-w + 0.6, +w - 0.6);
+        std::uniform_real_distribution<float> position(-w + 0.6, +w - 0.6);
+        std::uniform_real_distribution<float> velocity(-3.0, 3.0);
 
         for (int i = 0; i < nBoids; i++) {
             boidPositions.push_back(glm::vec3(
-                distribution(generator),
-                distribution(generator),
-                distribution(generator)
+                position(generator),
+                position(generator),
+                position(generator)
+            ));
+            boidVelocities.push_back(glm::vec3(
+                velocity(generator),
+                velocity(generator),
+                velocity(generator)
             ));
         }
 
@@ -136,6 +166,8 @@ int main() {
             float currentFrame = static_cast<float>(glfwGetTime()/2);
             deltaTime = currentFrame - lastFrame;
             lastFrame = currentFrame;
+            updateBoids(boidPositions, boidVelocities, deltaTime);
+            glm::mat4 view = camera.getViewMatrix();
 
             // set uniforms
             shader.use();
@@ -146,20 +178,17 @@ int main() {
             glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
             // draw grid
-            glDepthMask(GL_FALSE);
-            glm::mat4 gridModel = glm::rotate(model, glm::radians(boxAngle), glm::vec3(0, 1, 0));
-            shader.uniform("model", gridModel);
+            shader.uniform("model", model);
             shader.uniform("color", 0.8f, 0.8f, 0.85f);
             glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
             cube->draw();
-            shader.uniform("model", gridModel);
+            shader.uniform("model", model);
             shader.uniform("color", 0.f, 0.f, 0.f);
             glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
             grid->draw();
-            glDepthMask(GL_TRUE);
 
-            for (glm::vec3 position: boidPositions) {
-                glm::mat4 rotated, tmp_model = glm::rotate(glm::translate(model, position), glm::radians(globalAngle), glm::vec3(0, 1, 0));
+            for (unsigned int i = 0; i < boidPositions.size(); i++) {
+                glm::mat4 rotated, tmp_model = glm::translate(model, boidPositions[i]);
 
                 if (drawCollisionRegion) {
                     shader.uniform("color", 0.2f, 0.2f, 0.2f);
@@ -188,6 +217,10 @@ int main() {
                     neighborhood->draw();
                 }
 
+                // fix bird rotation
+                glm::vec3 v = boidVelocities[i];
+                tmp_model = glm::rotate(tmp_model, -atan2f(v.z, v.x), glm::vec3(0, 1, 0));
+                tmp_model = glm::rotate(tmp_model, atan2f(v.y, sqrtf(v.x*v.x+v.z*v.z)), glm::vec3(0, 0, 1));
                 shader.uniform("model", tmp_model);
                 shader.uniform("color", 0.f, 0.f, 0.f);
                 bird.draw();
