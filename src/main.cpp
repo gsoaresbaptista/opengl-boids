@@ -8,7 +8,7 @@
 #include "core/mesh.hpp"
 #include "shapes/primitives.hpp"
 #include "shapes/visualization.hpp"
-#include "camera/camera.hpp"
+#include "camera/orbital_camera.hpp"
 
 #include <vector>
 #include <memory>
@@ -28,7 +28,7 @@ const unsigned int seed = 42;
 std::mt19937 generator(seed);
 
 // camera settings
-Camera camera(100, 0.f, 90.f, glm::vec3(0.f, 0.f, 0.f));
+OrbitalCamera camera(100, 0.f, 90.f, glm::vec3(0.f, 0.f, 0.f));
 
 // simulation settings
 float speed = 2.f;
