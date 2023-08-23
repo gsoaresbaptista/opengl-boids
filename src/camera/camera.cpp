@@ -1,6 +1,7 @@
 #include "camera.hpp"
 
 #include <glm/gtc/matrix_transform.hpp>
+#include <cmath>
 
 const glm::vec3 GLOBAL_UP(0, 1, 0);
 
@@ -18,7 +19,7 @@ glm::mat4 Camera::getViewMatrix() {
 }
 
 void Camera::updateTheta(float delta) {
-    this->theta -= delta;
+    this->theta = fmodf(this->theta - delta, 360.0);
     this->update();
 }
 
@@ -36,7 +37,11 @@ void Camera::updatePhi(float delta){
 }
 
 float Camera::getTheta() {
-    return this->theta;
+    if (this->theta > 0) {
+        return this->theta - 360;
+    } else {
+        return this->theta;
+    }
 }
 
 float Camera::getPhi() {

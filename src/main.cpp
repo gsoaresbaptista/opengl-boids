@@ -23,8 +23,9 @@ float lastFrame = 0.0f;
 // global settings
 unsigned int windowWidth = 1280;
 unsigned int windowHeight = 720;
-const unsigned int seed = 42;
 const glm::vec3 UP(0, 1, 0);
+const unsigned int seed = 42;
+std::mt19937 generator(seed);
 
 // camera settings
 Camera camera(100, 0.f, 90.f, glm::vec3(0.f, 0.f, 0.f));
@@ -32,10 +33,9 @@ Camera camera(100, 0.f, 90.f, glm::vec3(0.f, 0.f, 0.f));
 // simulation settings
 float speed = 2.f;
 float neighborhoodRadius = 8*0.3536;
-float separationValue = 0.10;
-float cohesionValue = 0.10;
-float alignmentValue = 0.10;
-
+float separationValue = 0.12;
+float cohesionValue = 0.12;
+float alignmentValue = 0.12;
 
 void mouse_callback(GLFWwindow* window __attribute__((unused)), double xpos, double ypos) {
     static float lastMousePosx = 0.f;
@@ -76,83 +76,41 @@ void key_callback(
     }
     if (key == GLFW_KEY_S && action == GLFW_PRESS) {
         speed = speed >= 100.f ? 2.f : 100.f;
-        separationValue = separationValue >= 10 ? 0.1f : 10.f;
-        cohesionValue = cohesionValue >= 10 ? 0.1f : 10.f;
-        alignmentValue = alignmentValue >= 10 ? 0.1f : 10.f;
     }
 }
 
-glm::vec3 separation(unsigned int i, std::vector<glm::vec3> &boidPositions, std::vector<glm::vec3> &boidVelocities) {
+glm::vec3 boidBehavior(unsigned int i, std::vector<glm::vec3> &boidPositions, std::vector<glm::vec3> &boidVelocities) {
     int total = 0;
-    glm::vec3 tmp = glm::vec3(0);
+    glm::vec3 separation = glm::vec3(0);
+    glm::vec3 cohesion = glm::vec3(0);
+    glm::vec3 alignment = glm::vec3(0);
 
     for (unsigned int j = 0; j < boidPositions.size(); j++) {
         if (j != i) {
-            glm::vec3 distance = boidPositions[i] - boidPositions[j];
+            glm::vec3 distance = boidPositions[j] - boidPositions[i];
             if (glm::length(distance) < neighborhoodRadius) {
                 total++;
-                tmp += glm::normalize(distance);
+                separation += distance;
+                cohesion += boidPositions[j];
+                alignment += boidVelocities[j];
             }
         }
     }
 
     if (total > 0) {
-        tmp = glm::normalize(tmp);
+        separation = -glm::normalize(separation);
+        cohesion /= total;
+        cohesion = glm::normalize(cohesion - boidPositions[i]);
+        alignment /= total;
+        alignment = glm::normalize(alignment);
     }
 
-    return tmp;
-}
-
-glm::vec3 cohesion(unsigned int i, std::vector<glm::vec3> &boidPositions, std::vector<glm::vec3> &boidVelocities) {
-    int total = 0;
-    glm::vec3 tmp = glm::vec3(0);
-
-    for (unsigned int j = 0; j < boidPositions.size(); j++) {
-        if (j != i) {
-            float distance = glm::length(boidPositions[i] - boidPositions[j]);
-            if (distance < neighborhoodRadius) {
-                total++;
-                tmp += boidPositions[j];
-            }
-        }
-    }
-
-    if (total > 0) {
-        tmp /= total;
-        tmp = glm::normalize(tmp - boidPositions[i]);
-    }
-
-    return tmp;
-}
-
-glm::vec3 alignment(unsigned int i, std::vector<glm::vec3> &boidPositions, std::vector<glm::vec3> &boidVelocities) {
-    int total = 0;
-    glm::vec3 tmp = glm::vec3(0);
-
-    for (unsigned int j = 0; j < boidPositions.size(); j++) {
-        if (j != i) {
-            float distance = glm::length(boidPositions[i] - boidPositions[j]);
-            if (distance < neighborhoodRadius) {
-                total++;
-                tmp += boidVelocities[j] / distance;
-            }
-        }
-    }
-
-    if (total > 0) {
-        tmp /= total;
-        tmp = glm::normalize(tmp);
-    }
-
-    return tmp;
+    return separation * separationValue + cohesion * cohesionValue + alignment * alignmentValue;
 }
 
 void updateBoids(std::vector<glm::vec3> &boidPositions, std::vector<glm::vec3> &boidVelocities, float dt) {
     for (unsigned int i = 0; i < boidPositions.size(); i++) {
-        glm::vec3 acceleration = glm::vec3(0.0);
-        acceleration += separation(i, boidPositions, boidVelocities) * separationValue;
-        acceleration += cohesion(i, boidPositions, boidVelocities) * cohesionValue;
-        acceleration += alignment(i, boidPositions, boidVelocities) * alignmentValue;
+        glm::vec3 acceleration = boidBehavior(i, boidPositions, boidVelocities);
         boidVelocities[i] += acceleration / (separationValue + cohesionValue + alignmentValue);
 
         if (glm::length(boidVelocities[i]) > speed) {
@@ -241,7 +199,6 @@ int main() {
         std::vector<glm::vec3> boidVelocities;
 
         // random generator
-        std::mt19937 generator(seed);
         std::uniform_real_distribution<float> position(-w + 0.6, +w - 0.6);
         std::uniform_real_distribution<float> velocity(-speed, speed);
 
@@ -275,10 +232,8 @@ int main() {
 
             // draw grid
             glm::mat4 cubeModel = glm::mat4(1.0);
-            if (camera.getTheta() > 0)
-                cubeModel = glm::rotate(cubeModel, glm::radians((int(camera.getTheta()/90)+1)*90.f), UP);
-            if (camera.getTheta() < 0)
-                cubeModel = glm::rotate(cubeModel, glm::radians(int(camera.getTheta())/90*90.f), UP);
+            float rotatedTheta = glm::radians(int(camera.getTheta() / 90)* 90.0f);
+            cubeModel = glm::rotate(cubeModel, rotatedTheta, UP);
 
             glDepthMask(GL_FALSE);
             shader.uniform("model", cubeModel);
