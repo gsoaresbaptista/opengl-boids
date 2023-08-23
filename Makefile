@@ -10,7 +10,7 @@ LIBS_DIR := $(BUILD_DIR)/third_party
 TARGET := boids
 
 # List of modules
-MODULES := core camera shapes
+MODULES := core camera shapes utils
 THIRD_PARTY := glad imgui
 FOLDER_PATHS = $(addprefix $(BUILD_DIR)/, $(MODULES))
 FOLDER_PATHS += $(addprefix $(LIBS_DIR)/, $(THIRD_PARTY))

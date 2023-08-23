@@ -26,8 +26,11 @@ class OrbitalCamera {
         void updateTheta(float delta);
         void updatePhi(float delta);
         void updateRadius(float delta);
+        void setRadius(float radius);
         float getTheta();
+        void setTheta(float theta);
         float getPhi();
+        void setPhi(float phi);
 };
 
 #endif // CAMERA_ORBITAL_CAMERA_HPP

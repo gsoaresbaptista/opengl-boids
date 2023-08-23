@@ -102,3 +102,33 @@ std::shared_ptr<Mesh> Visualization::halfCube(float size) {
 
     return cube;
 }
+
+std::shared_ptr<Mesh> Visualization::halfCubeBorders(float size) {
+    // create vertices
+    float w = size / 2.0f;
+    std::vector<float> vertices = {
+        -w, +w, -w,
+        +w, +w, -w,
+        -w, +w, -w,
+        -w, -w, -w,
+        -w, -w, -w,
+        +w, -w, -w,
+        +w, -w, -w,
+        +w, +w, -w,
+        +w, +w, -w,
+        +w, +w, +w,
+        +w, +w, +w,
+        +w, -w, +w,
+        +w, -w, +w,
+        +w, -w, -w,
+        +w, -w, +w,
+        -w, -w, +w,
+        -w, -w, +w,
+        -w, -w, -w,
+    };
+
+    std::shared_ptr<Mesh> grid = std::make_shared<Mesh>(vertices);
+    grid->setDrawMode(GL_LINES);
+
+    return grid;
+}

@@ -36,6 +36,24 @@ void OrbitalCamera::updatePhi(float delta){
     this->update();
 }
 
+void OrbitalCamera::setPhi(float phi) {
+    this->phi = phi;
+    if (this->phi < 0.1f) this->phi = 0.1f;
+    if (this->phi > 90.1f) this->phi = 90.1f;
+    this->update();
+}
+
+void OrbitalCamera::setTheta(float theta) {
+    this->theta = theta;
+    this->theta = fmodf(this->theta, 360.0);
+    this->update();
+}
+
+void OrbitalCamera::setRadius(float radius) {
+    this->radius = radius;
+}
+
+
 float OrbitalCamera::getTheta() {
     if (this->theta > 0) {
         return this->theta - 360;
