@@ -233,7 +233,7 @@ int main() {
             // imgui window
             ImGui::SetNextWindowPos(windowPos, ImGuiCond_Appearing);
             ImGui::SetNextWindowSize(windowSize, ImGuiCond_Appearing);
-            ImGui::Begin("Simulation Settings", NULL, ImGuiWindowFlags_NoMove);
+            ImGui::Begin("Simulation Settings", NULL, ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize);
             ImGui::TextWrapped("Welcome to Flocking Simulation! Use these controls to adjust visualization settings and simulation parameters.");
             ImGui::Dummy(ImVec2(0.0f, 5.0f));
             ImGui::Separator();
