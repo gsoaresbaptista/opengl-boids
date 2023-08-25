@@ -158,6 +158,8 @@ int main() {
     assert(window);
     glfwMakeContextCurrent(window);
     glfwSetKeyCallback(window, key_callback);
+    glfwSetWindowAttrib(window, GLFW_RESIZABLE, GLFW_FALSE);
+    glfwSetWindowAttrib(window, GLFW_MAXIMIZED, GLFW_FALSE);
 
     // load glad
     assert(gladLoadGLLoader((GLADloadproc)glfwGetProcAddress));
@@ -172,6 +174,7 @@ int main() {
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
     ImGuiIO& io = ImGui::GetIO();
+    io.IniFilename = NULL;                                    // Disable .ini file creation
     io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;     // Enable Keyboard Controls
     io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;      // Enable Gamepad Controls
 
@@ -233,7 +236,7 @@ int main() {
             // imgui window
             ImGui::SetNextWindowPos(windowPos, ImGuiCond_Appearing);
             ImGui::SetNextWindowSize(windowSize, ImGuiCond_Appearing);
-            ImGui::Begin("Simulation Settings", NULL, ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize);
+            ImGui::Begin("Simulation Settings", NULL, ImGuiWindowFlags_NoMove);
             ImGui::TextWrapped("Welcome to Flocking Simulation! Use these controls to adjust visualization settings and simulation parameters.");
             ImGui::Dummy(ImVec2(0.0f, 5.0f));
             ImGui::Separator();
