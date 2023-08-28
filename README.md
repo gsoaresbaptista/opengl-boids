@@ -2,8 +2,7 @@
 
 A simple Boids simulation implemented in OpenGL, using GLFW and ImGui for configuration.
 <p align="center">
-  <img src="https://github.com/gsoaresbaptista/opengl-boids/blob/main/.github/simulation.gif" />
-<!-- ![Boids Simulation](https://github.com/gsoaresbaptista/opengl-boids/blob/main/.github/simulation.gif) -->
+  <img src="https://github.com/gsoaresbaptista/opengl-boids/blob/main/.github/simulation.png" />
 </p>
 
 
